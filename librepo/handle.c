@@ -51,6 +51,24 @@
 #include "fastestmirror_internal.h"
 #include "cleanup.h"
 
+static void
+lr_share_lock_cb(CURL *handle, curl_lock_data data,
+                 curl_lock_access access, void *userptr)
+{
+    (void)handle;
+    (void)access;
+    GMutex *mutexes = userptr;
+    g_mutex_lock(&mutexes[data]);
+}
+
+static void
+lr_share_unlock_cb(CURL *handle, curl_lock_data data, void *userptr)
+{
+    (void)handle;
+    GMutex *mutexes = userptr;
+    g_mutex_unlock(&mutexes[data]);
+}
+
 CURL *
 lr_get_curl_handle()
 {
@@ -140,6 +158,23 @@ lr_handle_init(void)
     handle->cachedir = NULL;
     handle->preservetime = 0;
 
+    for (int i = 0; i < CURL_LOCK_DATA_LAST; i++)
+        g_mutex_init(&handle->share_mutexes[i]);
+    handle->curl_share = curl_share_init();
+    if (handle->curl_share) {
+        curl_share_setopt(handle->curl_share,
+                          CURLSHOPT_SHARE, CURL_LOCK_DATA_DNS);
+        curl_share_setopt(handle->curl_share,
+                          CURLSHOPT_SHARE, CURL_LOCK_DATA_CONNECT);
+        curl_share_setopt(handle->curl_share,
+                          CURLSHOPT_LOCKFUNC, lr_share_lock_cb);
+        curl_share_setopt(handle->curl_share,
+                          CURLSHOPT_UNLOCKFUNC, lr_share_unlock_cb);
+        curl_share_setopt(handle->curl_share,
+                          CURLSHOPT_USERDATA, handle->share_mutexes);
+        curl_easy_setopt(curl, CURLOPT_SHARE, handle->curl_share);
+    }
+
     return handle;
 }
 
@@ -150,6 +185,11 @@ lr_handle_free(LrHandle *handle)
         return;
     if (handle->curl_handle)
         curl_easy_cleanup(handle->curl_handle);
+    if (handle->curl_share) {
+        curl_share_cleanup(handle->curl_share);
+        for (int i = 0; i < CURL_LOCK_DATA_LAST; i++)
+            g_mutex_clear(&handle->share_mutexes[i]);
+    }
     if (handle->mirrorlist_fd != -1)
         close(handle->mirrorlist_fd);
     if (handle->metalink_fd != -1)

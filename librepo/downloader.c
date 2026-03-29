@@ -1492,6 +1492,9 @@ prepare_next_transfer(LrDownload *dd, gboolean *candidatefound, GError **err)
     }
     target->curl_handle = h;
 
+    if (target->handle && target->handle->curl_share)
+        curl_easy_setopt(h, CURLOPT_SHARE, target->handle->curl_share);
+
     // Set URL
     c_rc = curl_easy_setopt(h, CURLOPT_URL, full_url);
     if (c_rc != CURLE_OK) {
