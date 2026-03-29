@@ -2683,8 +2683,9 @@ lr_download(GSList *targets,
         return TRUE;
     }
 
-    // XXX: Downloader configuration (max parallel connections etc.)
-    // is taken from the handle of the first target.
+    // Downloader configuration: use the maximum parallelism across all
+    // target handles so that multi-handle batches aren't bottlenecked
+    // by a single handle's conservative setting.
     LrHandle *lr_handle = ((LrDownloadTarget *) targets->data)->handle;
 
     // Prepare download data
@@ -2696,6 +2697,12 @@ lr_download(GSList *targets,
         dd.max_mirrors_to_try = lr_handle->maxmirrortries;
         dd.allowed_mirror_failures = lr_handle->allowed_mirror_failures;
         dd.adaptivemirrorsorting = lr_handle->adaptivemirrorsorting;
+
+        for (GSList *elem = g_slist_next(targets); elem; elem = g_slist_next(elem)) {
+            LrDownloadTarget *dt = elem->data;
+            if (dt->handle && dt->handle->maxparalleldownloads > dd.max_parallel_connections)
+                dd.max_parallel_connections = dt->handle->maxparalleldownloads;
+        }
     } else {
         // No handle, this is allowed when a complete URL is passed
         // via relative_url param.

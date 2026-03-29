@@ -69,7 +69,7 @@ typedef struct _LrHandle LrHandle;
 #define LRO_MAXMIRRORTRIES_MIN              0L
 
 /** LRO_MAXPARALLELDOWNLOADS default value */
-#define LRO_MAXPARALLELDOWNLOADS_DEFAULT    3L
+#define LRO_MAXPARALLELDOWNLOADS_DEFAULT    5L
 
 /** LRO_MAXPARALLELDOWNLOADS minimal allowed value */
 #define LRO_MAXPARALLELDOWNLOADS_MIN        1L
