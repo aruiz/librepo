@@ -211,6 +211,9 @@ struct _LrHandle {
     LrIpResolveType ipresolve; /*!<
         What kind of IP addresses to use when resolving host names. */
 
+    LrHttpVersionType httpversion; /*!<
+        HTTP version preference (default: LR_HTTPVERSION_2TLS). */
+
     long allowed_mirror_failures; /*!<
         Number of allowed failed transfers, when there are no
         successful ones, before a mirror gets ignored. */

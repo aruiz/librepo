@@ -82,6 +82,8 @@ lr_get_curl_handle()
         goto err;
     if (curl_easy_setopt(h, CURLOPT_FILETIME, 0) != CURLE_OK)
         goto err;
+    if (curl_easy_setopt(h, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2TLS) != CURLE_OK)
+        goto err;
 
     return h;
 
@@ -867,6 +869,27 @@ lr_handle_setopt(LrHandle *handle,
         handle->preservetime = va_arg(arg, long) ? 1 : 0;
         c_rc = curl_easy_setopt(c_h, CURLOPT_FILETIME, handle->preservetime);
         break;
+
+    case LRO_HTTPVERSION: {
+        long curl_ver = -1;
+        long lr_ver = va_arg(arg, long);
+        switch (lr_ver) {
+            case LR_HTTPVERSION_DEFAULT: curl_ver = CURL_HTTP_VERSION_NONE;  break;
+            case LR_HTTPVERSION_1_1:     curl_ver = CURL_HTTP_VERSION_1_1;   break;
+            case LR_HTTPVERSION_2TLS:    curl_ver = CURL_HTTP_VERSION_2TLS;  break;
+            case LR_HTTPVERSION_2:       curl_ver = CURL_HTTP_VERSION_2;     break;
+            default: break;
+        }
+        if (curl_ver == -1) {
+            g_set_error(err, LR_HANDLE_ERROR, LRE_BADOPTARG,
+                    "Bad LRO_HTTPVERSION value");
+            ret = FALSE;
+        } else {
+            handle->httpversion = lr_ver;
+            c_rc = curl_easy_setopt(c_h, CURLOPT_HTTP_VERSION, curl_ver);
+        }
+        break;
+    }
 
     default:
         g_set_error(err, LR_HANDLE_ERROR, LRE_BADOPTARG,
@@ -1787,6 +1810,12 @@ lr_handle_getinfo(LrHandle *handle,
         str = va_arg(arg, char **);
         *str = handle->cachedir;
         break;
+
+    case LRI_HTTPVERSION: {
+        LrHttpVersionType *type = va_arg(arg, LrHttpVersionType *);
+        *type = handle->httpversion;
+        break;
+    }
 
     default:
         rc = FALSE;
